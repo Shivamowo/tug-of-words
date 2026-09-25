@@ -139,7 +139,6 @@ section.screen{width:100%;max-width:1060px;padding:16px;display:flex;flex-direct
 .log{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--bg2);min-height:0;
   box-shadow:inset 0 0 0 4px var(--lilac);scrollbar-width:thin;scrollbar-color:var(--purple) var(--bg2);
   -webkit-overflow-scrolling:touch;overscroll-behavior:contain;scroll-behavior:smooth}
-.lobby-grid .log{height:260px}
 .msg{max-width:84%;padding:7px 10px 6px;position:relative;animation:msgIn .32s var(--ease-spring) both;transform-origin:left bottom}
 .msg.R{transform-origin:right bottom}
 @keyframes msgIn{from{opacity:0;transform:translateY(12px) scale(.9)}to{opacity:1;transform:none}}
@@ -181,13 +180,59 @@ section.screen{width:100%;max-width:1060px;padding:16px;display:flex;flex-direct
 @media (hover:hover){ .emotes button:hover{transform:translateY(-3px) scale(1.1)} }
 .emotes button:active{transform:scale(.85)}
 
+/* ---------- chat scroll + typing ---------- */
+.logwrap{position:relative;display:flex;flex-direction:column;min-height:0}
+.logwrap .log{flex:1}
+.lobby-grid .logwrap{flex:none;height:min(320px,48vh)}
+.log::-webkit-scrollbar{width:12px}
+.log::-webkit-scrollbar-track{background:var(--ink)}
+.log::-webkit-scrollbar-thumb{background:var(--purple);border:3px solid var(--ink)}
+.log::-webkit-scrollbar-thumb:hover{background:var(--pink-d)}
+.jump{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);z-index:3;border:none;cursor:pointer;
+  font-family:"Press Start 2P";font-size:9px;padding:7px 10px;background:var(--gold);color:var(--ink);box-shadow:0 0 0 3px var(--ink);
+  animation:jumpIn .3s var(--ease-spring), jumpBob 1.2s ease-in-out .3s infinite}
+@keyframes jumpIn{from{transform:translate(-50%,20px);opacity:0}}
+@keyframes jumpBob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-3px)}}
+.typing-line{font-family:"Press Start 2P";font-size:8px;color:var(--lilac);height:12px;margin-top:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex:none;animation:fadePulse 1.4s ease-in-out infinite}
+@keyframes fadePulse{50%{opacity:.45}}
+
+/* ---------- arena flavour: speech bubbles, typing dots, dust, streak fire, banners ---------- */
+.say{position:absolute;top:6px;z-index:4;max-width:44%;padding:4px 8px;font-size:19px;line-height:1.05;background:var(--white);color:var(--ink);
+  box-shadow:0 0 0 3px var(--ink);pointer-events:none;overflow-wrap:anywhere;transition:opacity .3s ease}
+.say.L{left:1.5%} .say.R{right:1.5%;text-align:right}
+.say::after{content:"";position:absolute;bottom:-9px;width:10px;height:10px;background:inherit;box-shadow:3px 3px 0 var(--ink)}
+.say.L::after{left:18px;transform:rotate(45deg)} .say.R::after{right:18px;transform:rotate(45deg)}
+.say.pop{animation:sayPop .35s var(--ease-spring)}
+.say.neg{background:var(--bad)}
+.arena:has(.event:not(.hidden)) .say{top:56px}
+.arena:has(.event:not(.hidden)) .dots{top:60px}
+@keyframes sayPop{from{transform:scale(.5) translateY(10px);opacity:0}}
+.dots{position:absolute;top:30px;z-index:3;display:flex;gap:4px;padding:5px 7px;background:var(--white);box-shadow:0 0 0 3px var(--ink)}
+.dots.L{left:5%} .dots.R{right:5%}
+.dots i{width:6px;height:6px;background:var(--ink);animation:dotBounce 1s ease-in-out infinite}
+.dots i:nth-child(2){animation-delay:.15s} .dots i:nth-child(3){animation-delay:.3s}
+@keyframes dotBounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+.dust{position:absolute;width:6px;height:6px;background:#e8c48f;pointer-events:none;z-index:2;animation:dust .65s var(--ease-out) forwards}
+@keyframes dust{to{transform:translate(var(--dx),var(--dy));opacity:0}}
+.side{transition:filter .3s}
+.side.onfire svg{animation:tug 1s ease-in-out infinite, fire .5s ease-in-out infinite alternate}
+@keyframes fire{from{filter:drop-shadow(0 0 2px #ffb84d) drop-shadow(0 -2px 4px #ff6b3d)}to{filter:drop-shadow(0 0 6px #ffe066) drop-shadow(0 -6px 10px #ff6b3d)}}
+.arena.pop{animation:arenaPop .4s var(--ease-out)}
+@keyframes arenaPop{30%{transform:scale(1.025);box-shadow:inset 0 0 0 4px #ff4fd8,0 0 24px #ff4fd8}}
+.banner{position:absolute;left:50%;top:50%;z-index:6;font-family:"Press Start 2P";font-size:30px;color:var(--gold);white-space:nowrap;pointer-events:none;
+  text-shadow:4px 4px 0 var(--purple-d),-2px -2px 0 var(--ink);animation:bannerIn 1.5s var(--ease-out) forwards}
+.banner.final{color:var(--bad)}
+@keyframes bannerIn{0%{transform:translate(-50%,-50%) scale(2.4);opacity:0}18%{transform:translate(-50%,-50%) scale(.95);opacity:1}28%{transform:translate(-50%,-50%) scale(1.05)}80%{opacity:1}100%{transform:translate(-50%,-50%) scale(1);opacity:0}}
+.chip.streak{background:linear-gradient(90deg,#ffb84d,#ff6b3d);color:var(--ink)}
+
 /* ---------- game (full-height layout, chat takes the remaining space) ---------- */
 #game{height:var(--app-h);gap:12px;padding:10px 16px 12px;justify-content:flex-start;overflow:hidden}
 #game > *{flex:none}
 #game .game-grid{flex:1 1 auto;min-height:0;width:100%;display:flex}
 #game-chat-slot{flex:1;min-height:0;display:flex;width:100%}
 #game #chat{flex:1;min-height:0}
-#game .log{height:auto;min-height:70px}
+#game .logwrap{flex:1;min-height:0}
+#game .log{min-height:60px}
 .hud{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:18px;width:100%;align-items:stretch}
 .timer{font-family:"Press Start 2P";font-size:26px;display:flex;align-items:center;justify-content:center;min-width:120px;background:var(--purple)!important;transition:color .3s}
 .timer.hurry{color:var(--bad);animation:pulse .5s ease-in-out infinite}
@@ -305,6 +350,14 @@ body.shake #app{animation:screenshake .4s cubic-bezier(.36,.07,.19,.97)}
   .arena{height:140px}
   .side{top:42px} .rope{top:82px} .knot{top:48px}
   .msg{max-width:92%}
+  .say{font-size:15px;max-width:42%;padding:2px 6px;top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .say::after{display:none}
+  #audio-ctl:not(.in-hud){position:absolute}
+  .dots{top:24px}
+  .arena:has(.event:not(.hidden)) .say{display:none}
+  .arena:has(.event:not(.hidden)) .dots{display:none}
+  .banner{font-size:18px}
+  .lobby-grid .logwrap{height:min(300px,45vh)}
   .msg .txt{font-size:21px}
   .composer{margin-top:8px;gap:8px}
   .composer .field{font-size:20px;padding:9px 10px}
@@ -335,6 +388,9 @@ body.short #game{gap:8px;padding-top:6px}
 body.short .emotes{margin-top:6px}
 body.short .emotes button{font-size:16px;padding:2px 5px}
 body.short .cool{display:none}
+body.short .say{font-size:14px;top:3px}
+body.short .dots{display:none}
+body.short .typing-line{margin-top:4px}
 /* phone landscape: HUD + arena on the left, chat on the right */
 body.land #game{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto 1fr;max-width:none;align-items:stretch}
 body.land #game .hud{grid-column:1;grid-row:1}

@@ -108,8 +108,8 @@
       <div class="event hidden" id="event"><span id="event-label"></span><div class="evbar" id="event-bar"></div></div>
       <div class="zone-label L">PINK WINS</div><div class="zone-label R">PURPLE WINS</div>
       <div class="rope" id="rope"></div><div class="danger L"></div><div class="danger R"></div>
-      <div class="side L" id="side-L"></div>
-      <div class="side R" id="side-R"></div>
+      <div class="side L" id="side-L"></div><div class="say L hidden" id="say-L"></div><div class="dots L hidden" id="dots-L"><i></i><i></i><i></i></div>
+      <div class="side R" id="side-R"></div><div class="say R hidden" id="say-R"></div><div class="dots R hidden" id="dots-R"><i></i><i></i><i></i></div>
       <div class="knot" id="knot" style="left:50%"><div class="flag"></div><div class="pole"></div></div>
       <div class="meter"><i class="mL" id="mL"></i><i class="mR" id="mR"></i></div>
     </div>
@@ -120,7 +120,12 @@
 <!-- shared chat (moved between screens) -->
 <div id="chat-tpl" class="hidden">
   <div class="box dark chat" id="chat"><div class="inner" style="padding:10px">
-    <div class="log" id="log"></div>
+    <div class="logwrap">
+      <div class="log" id="log-lobby"></div>
+      <div class="log hidden" id="log-game"></div>
+      <button class="jump hidden" id="jump">NEW ↓</button>
+    </div>
+    <div class="typing-line" id="typing-line">&nbsp;</div>
     <div class="composer">
       <input class="field" id="in-msg" maxlength="140" placeholder="say something…" autocomplete="off" />
       <button class="btn small" id="btn-send">SEND</button>

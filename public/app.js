@@ -62,6 +62,16 @@
     const chat = $("chat");
     if (id === "lobby") $("lobby-chat-slot").appendChild(chat);
     if (id === "game") $("game-chat-slot").appendChild(chat);
+    if (id === "lobby" || id === "game") {
+      const which = id === "game" ? "game" : "lobby";
+      if (S.logView !== which) {
+        S.logView = which;
+        $("log-lobby").classList.toggle("hidden", which !== "lobby");
+        $("log-game").classList.toggle("hidden", which !== "game");
+        $("jump").classList.add("hidden");
+        requestAnimationFrame(() => { const l = activeLog(); l.style.scrollBehavior = "auto"; l.scrollTop = l.scrollHeight; l.style.scrollBehavior = ""; });
+      }
+    }
     document.body.classList.toggle("fast", id === "game");
     document.body.classList.toggle("in-game", id === "game");
     const ctl = $("audio-ctl");
@@ -139,7 +149,7 @@
   socket.on("joined", ({ code }) => {
     S.joinCode = code;
     history.replaceState(null, "", `/r/${code}`);
-    $("log").innerHTML = "";
+    $("log-lobby").innerHTML = ""; $("log-game").innerHTML = "";
   });
   socket.on("connect", () => {
     // auto-rejoin after reconnect
@@ -202,7 +212,7 @@
 
   function renderGame(prev) {
     const r = S.room;
-    if (r.phase === "countdown" && prev?.phase !== "countdown") { S.cdShown = null; $("log").innerHTML = ""; S.hurry = false; S.promptIdx = -1; S.lastTick = null; }
+    if (r.phase === "countdown" && prev?.phase !== "countdown") { S.cdShown = null; $("log-game").innerHTML = ""; S.heartAt = 0; S.final10 = false; S.hurry = false; S.promptIdx = -1; S.lastTick = null; }
     // sides
     for (const t of ["L", "R"]) {
       const side = $("side-" + t);
@@ -244,11 +254,19 @@
     $("mL").style.transform = `scaleX(${(50 - v / 2) / 100})`;
     $("mR").style.transform = `scaleX(${(50 + v / 2) / 100})`;
     $("rope").style.backgroundPosition = `${v * 3}px 0`;
+    const drag = w * 0.0009;
+    $("side-L").style.transform = `translate3d(${Math.max(0, v) * drag}px,0,0) rotate(${Math.max(0, v) * 0.12}deg)`;
+    $("side-R").style.transform = `translate3d(${Math.min(0, v) * drag}px,0,0) rotate(${Math.min(0, v) * 0.12}deg)`;
     arena.style.setProperty("--danger-L", Math.max(0, (-v - 55) / 45));
     arena.style.setProperty("--danger-R", Math.max(0, (v - 55) / 45));
   }
 
   // ---------- frame loop: timers ----------
+  function showGo() {
+    S.goUntil = Date.now() + 700;
+    const cd = $("countdown"), n = $("cd-n");
+    cd.classList.remove("hidden"); n.textContent = "GO!"; n.style.animation = "none"; void n.offsetWidth; n.style.animation = "";
+  }
   function fmt(ms) { const s = Math.max(0, Math.ceil(ms / 1000)); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; }
   function loop() {
     const r = S.room;
@@ -261,7 +279,7 @@
         cd.classList.remove("hidden");
         if (S.cdShown !== label) { S.cdShown = label; const n = $("cd-n"); n.textContent = label; n.style.animation = "none"; void n.offsetWidth; n.style.animation = ""; A.sfx(label === "GO!" ? "go" : "count"); }
         if (S.tt !== "2:00") { S.tt = "2:00"; $("timer").textContent = "2:00"; }
-      } else {
+      } else if (!(S.goUntil > Date.now())) {
         $("countdown").classList.add("hidden");
       }
       if (r.phase === "playing") {
@@ -270,6 +288,9 @@
         const hurry = left < 20000;
         $("timer").classList.toggle("hurry", hurry);
         if (hurry && !S.hurry) { S.hurry = true; A.speedUp(178); }
+        if (left < 10000 && left > 0 && !S.final10) { S.final10 = true; banner("FINAL 10!", "final"); A.sfx("event"); }
+        const danger = Math.abs(ropeFx.shown);
+        if (danger > 70 && Date.now() > (S.heartAt || 0)) { S.heartAt = Date.now() + (danger > 88 ? 450 : 750); A.sfx("heart"); }
         if (hurry && left > 0) { const sec = Math.ceil(left / 1000); if (sec <= 5 && S.lastTick !== sec) { S.lastTick = sec; A.sfx("tick"); } }
       }
       const ev = $("event");
@@ -283,16 +304,29 @@
   }
   requestAnimationFrame(loop);
 
-  // ---------- chat ----------
-  const log = () => $("log");
-  function atBottom() { const l = log(); return l.scrollHeight - l.scrollTop - l.clientHeight < 80; }
-  function scroll(force) { const l = log(); if (force || atBottom()) l.scrollTop = l.scrollHeight; }
+  // ---------- chat (separate lobby + match logs) ----------
+  const activeLog = () => $(S.logView === "game" ? "log-game" : "log-lobby");
+  const atBottom = l => l.scrollHeight - l.scrollTop - l.clientHeight < 60;
+  function toBottom(l, smooth = true) {
+    l.scrollTo({ top: l.scrollHeight, behavior: smooth ? "smooth" : "auto" });
+    if (l === activeLog()) $("jump").classList.add("hidden");
+  }
+  function pushTo(l, el, forceScroll) {
+    const stick = atBottom(l);
+    l.appendChild(el);
+    while (l.children.length > 150) l.firstChild.remove();
+    if (stick || forceScroll) toBottom(l, true);
+    else if (l === activeLog()) $("jump").classList.remove("hidden");
+  }
+  $("jump").onclick = () => { A.sfx("click"); toBottom(activeLog()); };
+  ["log-lobby", "log-game"].forEach(id => $(id).addEventListener("scroll", e => { if (e.target === activeLog() && atBottom(e.target)) $("jump").classList.add("hidden"); }, { passive: true }));
+  const inMatch = () => S.room && (S.room.phase === "playing" || S.room.phase === "countdown");
 
   socket.on("chat", m => {
-    const stick = atBottom();
     const d = document.createElement("div");
     d.id = "msg-" + m.id;
-    if (m.kind === "sys") { d.className = "msg sys " + (m.tone || ""); d.textContent = m.text; }
+    let target;
+    if (m.kind === "sys") { d.className = "msg sys " + (m.tone || ""); d.textContent = m.text; target = inMatch() ? $("log-game") : $("log-lobby"); }
     else {
       d.className = `msg ${m.team}` + (m.cid === S.cid ? " me" : "");
       const who = document.createElement("div"); who.className = "who"; who.textContent = m.name;
@@ -300,14 +334,67 @@
       d.append(who, txt);
       if (m.pending) { const v = document.createElement("div"); v.className = "verdict"; v.innerHTML = `<span class="thinking">jev judging</span>`; d.appendChild(v); }
       if (m.cid !== S.cid) A.sfx("recv");
+      target = m.kind === "move" ? $("log-game") : $("log-lobby");
+      hideTyping(m.cid, m.team);
     }
-    log().appendChild(d);
-    while (log().children.length > 120) log().firstChild.remove();
-    scroll(stick);
+    pushTo(target, d, m.cid === S.cid);
   });
+
+  // ---------- typing indicators ----------
+  const typing = new Map(); // cid -> {name, team, until}
+  let lastTypingEmit = 0;
+  $("in-msg").addEventListener("input", () => {
+    const now = Date.now();
+    if (now - lastTypingEmit > 700 && $("in-msg").value.trim()) { lastTypingEmit = now; socket.emit("typing"); }
+  });
+  socket.on("typing", t => { typing.set(t.cid, { ...t, until: Date.now() + 1800 }); paintTyping(); });
+  function hideTyping(cid) { if (typing.delete(cid)) paintTyping(); }
+  function paintTyping() {
+    const now = Date.now();
+    for (const [k, v] of typing) if (v.until < now) typing.delete(k);
+    const names = [...typing.values()].map(v => v.name);
+    $("typing-line").textContent = names.length ? `${names.slice(0, 2).join(", ")}${names.length > 2 ? " +" + (names.length - 2) : ""} ${names.length > 1 ? "are" : "is"} typing…` : "\u00a0";
+    for (const t of ["L", "R"]) $("dots-" + t).classList.toggle("hidden", !(S.screen === "game" && [...typing.values()].some(v => v.team === t)));
+  }
+  setInterval(paintTyping, 500);
+
+  // ---------- arena flavour ----------
+  function sayBubble(team, text, pull) {
+    const el = $("say-" + team);
+    el.textContent = text.length > 42 ? text.slice(0, 40) + "…" : text;
+    el.classList.remove("hidden", "pop", "neg"); void el.offsetWidth; el.classList.add("pop");
+    if (pull < 0) el.classList.add("neg");
+    clearTimeout(el._t); el._t = setTimeout(() => el.classList.add("hidden"), 2200);
+  }
+  function dust(team) {
+    const arena = $("arena"), side = $("side-" + team);
+    const r = side.getBoundingClientRect(), a = arena.getBoundingClientRect();
+    for (let i = 0; i < 7; i++) {
+      const p = document.createElement("i"); p.className = "dust";
+      p.style.left = (r.left - a.left + r.width / 2 + (Math.random() - .5) * r.width * .6) + "px";
+      p.style.top = (r.bottom - a.top - 6) + "px";
+      p.style.setProperty("--dx", ((team === "L" ? -1 : 1) * (10 + Math.random() * 30)) + "px");
+      p.style.setProperty("--dy", (-8 - Math.random() * 22) + "px");
+      arena.appendChild(p); setTimeout(() => p.remove(), 700);
+    }
+  }
+  function burst(team, emojis) {
+    const arena = $("arena");
+    emojis.forEach((e, i) => setTimeout(() => {
+      const el = document.createElement("div"); el.className = "emo"; el.textContent = e;
+      el.style.left = (team === "L" ? 10 + Math.random() * 30 : 60 + Math.random() * 30) + "%";
+      arena.appendChild(el); setTimeout(() => el.remove(), 1900);
+    }, i * 120));
+  }
+  function banner(text, cls = "") {
+    const el = document.createElement("div"); el.className = "banner " + cls; el.textContent = text;
+    $("arena").appendChild(el); setTimeout(() => el.remove(), 1500);
+  }
+  const buzz = ms => { try { navigator.vibrate && navigator.vibrate(ms); } catch {} };
 
   socket.on("judged", j => {
     const d = document.getElementById("msg-" + j.id);
+    const gl = $("log-game"), stick = atBottom(gl);
     if (d) {
       const v = d.querySelector(".verdict") || d.appendChild(document.createElement("div"));
       v.className = "verdict done"; v.innerHTML = "";
@@ -318,7 +405,7 @@
       v.append(pull, stars);
       j.tags.forEach((t, i) => { const c = document.createElement("span"); c.className = "chip " + t.c; c.style.animationDelay = (80 + i * 70) + "ms"; c.textContent = t.t; v.appendChild(c); });
       d.classList.add(j.pull < 0 ? "hit-bad" : j.outcome === "crit" ? "hit-crit" : "hit");
-      scroll(false);
+      if (stick) toBottom(gl);
     }
     // rope + fx
     const prevRope = S.room ? S.room.rope : 0;
@@ -327,6 +414,16 @@
     const side = $("side-" + j.team); side.classList.remove("yank"); void side.offsetWidth; if (j.pull > 0) side.classList.add("yank");
     floatText(j);
     const mine = S.me && j.team === S.me.team;
+    const txtEl = d && d.querySelector(".txt");
+    if (txtEl) sayBubble(j.team, txtEl.textContent, j.pull);
+    if (j.pull > 0) dust(j.team);
+    $("side-" + j.team).classList.toggle("onfire", (j.streak || 0) >= 3);
+    if (j.pull <= 0) $("side-" + j.team).classList.remove("onfire");
+    if (j.outcome === "crit") {
+      const ar = $("arena"); ar.classList.remove("pop"); void ar.offsetWidth; ar.classList.add("pop");
+      burst(j.team, ["😱", "🔥", "💥"]); buzz(mine ? 35 : [20, 40, 20]);
+    } else if (!mine && j.pull > 8) buzz(15);
+    if ((j.streak || 0) >= 3) setTimeout(() => A.sfx("streak"), 160);
     const o = j.outcome;
     if (o === "crit") { A.sfx("crit"); shake(); }
     else if (o === "whiff") A.sfx("whiff");
@@ -380,12 +477,12 @@
   // fx
   socket.on("fx", f => {
     if (f.type === "flip") { A.sfx("flip"); sysLine(`NEW PROMPT: ${f.prompt}`, "flip"); }
-    if (f.type === "event") { A.sfx("event"); shake(); sysLine(`⚠ ${f.label} ⚠`, "flip"); }
+    if (f.type === "event") { A.sfx("event"); shake(); buzz([30, 60, 30]); sysLine(`⚠ ${f.label} ⚠`, "flip"); }
     if (f.type === "join") A.sfx("join");
-    if (f.type === "go") A.sfx("go");
+    if (f.type === "go") { A.sfx("go"); showGo(); }
   });
   function sysLine(text, tone) {
-    const d = document.createElement("div"); d.className = "msg sys " + (tone || ""); d.textContent = text; log().appendChild(d); scroll(true);
+    const d = document.createElement("div"); d.className = "msg sys " + (tone || ""); d.textContent = text; pushTo($("log-game"), d, true);
   }
 
   // ---------- game over ----------
@@ -403,7 +500,7 @@
     const me = r?.players.find(p => p.cid === S.cid);
     const add = (k, v) => { const d = document.createElement("div"); d.className = "stat"; d.innerHTML = `<div class="k"></div><div class="v"></div>`; d.querySelector(".k").textContent = k; d.querySelector(".v").textContent = v; stats.appendChild(d); };
     if (o.mvp) add("MVP", `${o.mvp.name} (${o.mvp.pull})`);
-    if (me) { add("YOUR PULL", Math.round(me.stats.pull)); add("LINES", me.stats.msgs); add("CRITS", me.stats.crits); add("LOLS", me.stats.lols); add("COMBOS", me.stats.combos); }
+    if (me) { add("YOUR PULL", Math.round(me.stats.pull)); add("LINES", me.stats.msgs); add("CRITS", me.stats.crits); add("LOLS", me.stats.lols); add("COMBOS", me.stats.combos); if (me.stats.bestStreak >= 3) add("BEST STREAK", "🔥 " + me.stats.bestStreak); }
     const q = (el, label, line) => {
       el.innerHTML = ""; if (!line) { el.classList.add("hidden"); return; } el.classList.remove("hidden");
       const s = document.createElement("small"); s.textContent = label; el.appendChild(s);

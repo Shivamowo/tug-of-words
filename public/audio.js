@@ -106,6 +106,8 @@ const Audio8 = (() => {
     tick: () => tone(sfxBus, 1200, ctx.currentTime, 0.03, { vol: 0.08 }),
     win: () => seq([72, 72, 72, 76, null, 74, 77, 79, null, 84, 84, 88], 0.09, { vol: 0.2 }),
     lose: () => seq([67, 66, 65, 64, null, null, 55], 0.18, { vol: 0.18, type: "triangle" }),
+    heart: () => { const t = ctx.currentTime; tone(sfxBus, 70, t, 0.12, { type: "sine", vol: 0.5, slide: 0.6 }); tone(sfxBus, 60, t + 0.16, 0.14, { type: "sine", vol: 0.4, slide: 0.6 }); },
+    streak: () => seq([79, 83, 86, 91], 0.04, { vol: 0.12, type: "triangle" }),
     error: () => tone(sfxBus, 180, ctx.currentTime, 0.18, { vol: 0.15, type: "square" })
   };
 

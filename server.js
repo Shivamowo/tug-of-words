@@ -76,7 +76,7 @@ const sys = (room, text, tone = "info") => io.to(room.code).emit("chat", { id: `
 function clearTimers(room) { room.timers.forEach(clearTimeout); room.timers = []; }
 function later(room, ms, fn) { room.timers.push(setTimeout(fn, ms)); }
 
-function freshStats() { return { msgs: 0, pull: 0, crits: 0, whiffs: 0, lols: 0, combos: 0, best: null }; }
+function freshStats() { return { msgs: 0, pull: 0, crits: 0, whiffs: 0, lols: 0, combos: 0, best: null, streak: 0, bestStreak: 0 }; }
 
 // ---------------- match lifecycle ----------------
 function startMatch(room) {
@@ -191,6 +191,14 @@ async function handleMove(room, p, text) {
       if (ev?.id === "double") { pull *= 2; tags.push({ t: "DOUBLE", c: "crit" }); }
     }
   }
+  // hot streak: consecutive solid lines stack a bonus (x1.1 per line after the 2nd, max x1.4)
+  const solid = pull > 0 && (outcome === "normal" || outcome === "crit");
+  p.stats.streak = solid ? p.stats.streak + 1 : 0;
+  p.stats.bestStreak = Math.max(p.stats.bestStreak, p.stats.streak);
+  if (p.stats.streak >= 3) {
+    pull *= Math.min(1.4, 1 + 0.1 * (p.stats.streak - 2));
+    tags.push({ t: `🔥 STREAK x${p.stats.streak}`, c: "streak" });
+  }
   // balance uneven teams
   const counts = teamCounts(room);
   pull = pull / Math.sqrt(Math.max(1, counts[p.team]));
@@ -204,7 +212,7 @@ async function handleMove(room, p, text) {
 
   io.to(room.code).emit("judged", {
     id, cid: p.cid, team: p.team, pull, outcome, tags,
-    quality: Math.round(j.quality * 4 * 10) / 10, source: j.source, rope: room.rope
+    quality: Math.round(j.quality * 4 * 10) / 10, source: j.source, rope: room.rope, streak: p.stats.streak
   });
   if (Math.abs(room.rope) >= WIN_AT) endMatch(room, "knockout");
 }
@@ -283,6 +291,15 @@ io.on("connection", socket => {
     if (!room || !p || p.cid !== room.hostCid || room.phase !== "over") return;
     room.phase = "lobby"; room.rope = 0; room.winner = null;
     broadcast(room);
+  });
+
+  socket.on("typing", () => {
+    const { room, p } = ctx();
+    if (!room || !p) return;
+    const now = Date.now();
+    if (now - (p.lastTyping || 0) < 600) return;
+    p.lastTyping = now;
+    socket.to(room.code).emit("typing", { cid: p.cid, name: p.name, team: p.team });
   });
 
   socket.on("emote", e => {
