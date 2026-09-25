@@ -1,0 +1,15 @@
+services:
+  - type: web
+    name: tug-of-words
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: TYPESAFE_API_KEY
+        sync: false
+      - key: JEV_MODEL
+        value: jev-latest
+      - key: NODE_VERSION
+        value: 20

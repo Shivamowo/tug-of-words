@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1" />
+<title>Tug of Words</title>
+<meta name="description" content="2-minute chat tug-of-war. Every message is a move, judged live by Jev." />
+<meta name="theme-color" content="#2e2c45" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' shape-rendering='crispEdges'%3E%3Crect width='16' height='16' fill='%232e2c45'/%3E%3Crect x='2' y='7' width='12' height='2' fill='%23e8c48f'/%3E%3Crect x='6' y='3' width='4' height='4' fill='%23ffe066'/%3E%3Crect x='1' y='5' width='3' height='6' fill='%23f7a9e8'/%3E%3Crect x='12' y='5' width='3' height='6' fill='%238f7bff'/%3E%3C/svg%3E" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+<div id="stars"></div>
+<div id="grid"></div>
+
+<div id="audio-ctl">
+  <button id="btn-music" title="Music">♪</button>
+  <button id="btn-sfx" title="Sound effects">🔊</button>
+</div>
+
+<svg class="gameboy" id="gameboy" viewBox="0 0 20 30" shape-rendering="crispEdges" aria-hidden="true">
+  <rect x="1" y="0" width="18" height="30" fill="#ffffff"/>
+  <rect x="2" y="1" width="16" height="28" fill="#5b45e6"/>
+  <rect x="4" y="3" width="12" height="9" fill="#ffffff"/>
+  <rect x="5" y="4" width="10" height="7" fill="#f7a9e8"/>
+  <rect x="7" y="5" width="2" height="2" fill="#ffffff"/><rect x="9" y="6" width="2" height="2" fill="#ffffff"/><rect x="7" y="7" width="2" height="2" fill="#ffffff"/>
+  <rect x="4" y="17" width="6" height="2" fill="#ffffff"/><rect x="6" y="15" width="2" height="6" fill="#ffffff"/>
+  <rect x="13" y="16" width="2" height="2" fill="#ffffff"/><rect x="15" y="19" width="2" height="2" fill="#ffffff"/>
+</svg>
+
+<main id="app">
+  <!-- BOOT -->
+  <section class="screen" id="boot">
+    <div class="label">A JEV GAME</div>
+    <h1 class="title big">TUG OF<br/>WORDS</h1>
+    <div class="sub" id="boot-sub">loading...</div>
+    <div class="loadbar"><i id="boot-bar"></i></div>
+    <div class="pct" id="boot-pct">10%</div>
+    <button class="btn pink blink hidden" id="btn-start">PRESS START</button>
+    <div class="box" style="max-width:560px">
+      <div class="inner tagline">2 minutes. 1 rope. Every chat message is a move. An AI judges every line live. Out-talk your friend.</div>
+    </div>
+  </section>
+
+  <!-- HOME -->
+  <section class="screen hidden" id="home">
+    <h1 class="title mid">TUG OF WORDS</h1>
+    <div class="box card"><div class="inner card" style="width:100%">
+      <label class="px" style="font-size:12px" for="in-name">ENTER NAME</label>
+      <input class="field" id="in-name" maxlength="16" placeholder="your name" autocomplete="off" />
+      <button class="btn" id="btn-create">CREATE ROOM ▶</button>
+      <button class="btn pink hidden" id="btn-joinlink">JOIN ROOM ▶</button>
+      <div class="or" id="or-join">— or join with a code —</div>
+      <div class="row" id="row-join">
+        <input class="field" id="in-code" maxlength="5" placeholder="CODE" style="flex:1;text-transform:uppercase;letter-spacing:4px" autocomplete="off" />
+        <button class="btn ghost small" id="btn-join">JOIN</button>
+      </div>
+    </div></div>
+    <div class="footer">judged live by jev · typesafe.ai</div>
+  </section>
+
+  <!-- LOBBY -->
+  <section class="screen hidden" id="lobby">
+    <div class="row center">
+      <div class="label">ROOM</div>
+      <div class="code" id="lobby-code">-----</div>
+      <button class="btn small ghost" id="btn-copy">COPY LINK</button>
+    </div>
+    <div class="teams">
+      <div class="box team L"><div class="inner"><h3>TEAM PINK</h3><div id="team-L"></div></div></div>
+      <div class="vs">VS</div>
+      <div class="box team R"><div class="inner"><h3>TEAM PURPLE</h3><div id="team-R"></div></div></div>
+    </div>
+    <div class="row center">
+      <button class="btn ghost small" id="btn-switch">SWITCH TEAM</button>
+      <button class="btn pink" id="btn-go">START MATCH ▶</button>
+    </div>
+    <div class="px muted" style="font-size:10px;text-align:center" id="lobby-hint"></div>
+    <div class="lobby-grid">
+      <div id="lobby-chat-slot"></div>
+      <div class="box dark"><div class="inner howto">
+        <div class="px" style="font-size:12px;margin-bottom:10px;color:var(--gold)">HOW TO PLAY</div>
+        <ul>
+          <li>A prompt appears. <b>Type lines</b> that nail it.</li>
+          <li>Every message is judged live by Jev. Good lines <b>pull the rope</b>.</li>
+          <li><b>LOL</b> = bonus pull. Reply to their line = <b>COMBO</b>.</li>
+          <li>Spam or copies <b>pull backwards</b>. Off-topic <b>fizzles</b>.</li>
+          <li>Luck roll per line: <b>CRIT x2</b> or <b>WHIFF</b>.</li>
+          <li>Prompt flips every 30s. Chaos events hit. Follow the rule or lose pull.</li>
+          <li>Drag the flag past your line, or lead when 2:00 ends.</li>
+        </ul>
+      </div></div>
+    </div>
+  </section>
+
+  <!-- GAME -->
+  <section class="screen hidden" id="game">
+    <div class="hud">
+      <div class="box"><div class="inner timer" id="timer" style="background:var(--purple)">2:00</div></div>
+      <div class="box prompt" id="prompt-box"><div class="inner"><div><span class="step" id="prompt-step">PROMPT 1/4</span><span id="prompt-text">…</span></div></div></div>
+      <div class="box"><div class="inner jev" id="jev-ind" style="background:var(--bg2);border-color:var(--lilac)"><div class="dot"></div><span id="jev-label">JEV LIVE</span><span id="jev-ms"></span></div></div>
+    </div>
+    <div class="arena" id="arena">
+      <div class="zone L"></div><div class="zone R"></div>
+      <div class="event hidden" id="event"><span id="event-label"></span><div class="evbar" id="event-bar"></div></div>
+      <div class="zone-label L">PINK WINS</div><div class="zone-label R">PURPLE WINS</div>
+      <div class="rope"></div>
+      <div class="side L" id="side-L"></div>
+      <div class="side R" id="side-R"></div>
+      <div class="knot" id="knot" style="left:50%"><div class="flag"></div><div class="pole"></div></div>
+      <div class="meter"><i class="mL" id="mL" style="width:50%"></i><i class="mR" id="mR" style="width:50%"></i></div>
+    </div>
+    <div class="game-grid"><div id="game-chat-slot"></div></div>
+  </section>
+</main>
+
+<!-- shared chat (moved between screens) -->
+<div id="chat-tpl" class="hidden">
+  <div class="box dark chat" id="chat"><div class="inner" style="padding:10px">
+    <div class="log" id="log"></div>
+    <div class="composer">
+      <input class="field" id="in-msg" maxlength="140" placeholder="say something…" autocomplete="off" />
+      <button class="btn small" id="btn-send">SEND</button>
+    </div>
+    <div class="cool hidden" id="cool"><i id="cool-bar"></i></div>
+    <div class="emotes" id="emotes"></div>
+  </div></div>
+</div>
+
+<div class="overlay hidden" id="countdown"><div class="n" id="cd-n">3</div></div>
+
+<div class="overlay hidden" id="over">
+  <div class="result">
+    <h1 class="title big" id="res-title">YOU WIN</h1>
+    <div class="label" id="res-sub">TEAM PINK TAKES IT</div>
+    <div class="box" style="width:100%"><div class="inner" style="display:flex;flex-direction:column;gap:12px">
+      <div class="stat-grid" id="res-stats"></div>
+      <div class="quote" id="res-best"></div>
+      <div class="quote" id="res-funny"></div>
+    </div></div>
+    <div class="row center">
+      <button class="btn pink" id="btn-rematch">REMATCH ▶</button>
+      <button class="btn ghost small" id="btn-lobby">LOBBY</button>
+    </div>
+    <div class="px muted" style="font-size:9px" id="res-hint"></div>
+  </div>
+</div>
+
+<div id="toast" class="hidden"></div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="/audio.js"></script>
+<script src="/app.js"></script>
+</body>
+</html>
