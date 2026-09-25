@@ -4,26 +4,34 @@
   --pink:#f7a9e8; --pink-l:#ffd3f4; --pink-d:#d86cc6;
   --L:#f7a9e8; --L-d:#c95bb8; --R:#8f7bff; --R-d:#4b37d1;
   --good:#7dffb0; --bad:#ff6b8b; --meh:#b9b4d6; --gold:#ffe066;
-  --px:4px;
+  --ease-out:cubic-bezier(.22,1,.36,1);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --app-h:100vh;
 }
+@supports (height:100dvh){ :root{ --app-h:100dvh } }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%}
+html{overflow-x:hidden;-webkit-text-size-adjust:100%}
+html,body{min-height:100%}
 body{
   background:var(--bg); color:var(--white);
   font-family:"VT323",monospace; font-size:22px; line-height:1.15;
-  overflow-x:hidden; -webkit-font-smoothing:none; image-rendering:pixelated;
+  overflow-x:hidden; overflow-x:clip; -webkit-font-smoothing:none; image-rendering:pixelated;
+  -webkit-tap-highlight-color:transparent; overscroll-behavior-y:none;
 }
+body.in-game{overflow:hidden;height:var(--app-h)}
 button,input{font:inherit;color:inherit}
+button{touch-action:manipulation}
 .px{font-family:"Press Start 2P",monospace;letter-spacing:1px}
 .hidden{display:none!important}
 
 /* ---------- background: stars + synthwave grid ---------- */
-#stars{position:fixed;inset:0;pointer-events:none;z-index:0}
-.star{position:absolute;color:#fff;font-family:"Press Start 2P";animation:twinkle 2.4s steps(2) infinite}
+#stars{position:fixed;inset:0;pointer-events:none;z-index:0;overflow:hidden}
+.star{position:absolute;color:#fff;font-family:"Press Start 2P";animation:twinkle 3s ease-in-out infinite}
 .star.x{color:#e9e6ff;opacity:.85}
-@keyframes twinkle{50%{opacity:.25}}
+@keyframes twinkle{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.2;transform:scale(.7)}}
+#grid-wrap{position:fixed;left:0;right:0;bottom:0;height:48vh;overflow:hidden;pointer-events:none;z-index:0}
 #grid{
-  position:fixed;left:-50%;right:-50%;bottom:-10vh;height:48vh;z-index:0;pointer-events:none;
+  position:absolute;left:-50%;right:-50%;top:0;bottom:-10vh;
   background-image:
     linear-gradient(to right, rgba(255,255,255,.85) 3px, transparent 3px),
     linear-gradient(to bottom, rgba(255,255,255,.85) 3px, transparent 3px);
@@ -32,13 +40,14 @@ button,input{font:inherit;color:inherit}
   animation:gridmove 2.2s linear infinite;
   mask-image:linear-gradient(to bottom, transparent 0%, #000 35%);
   -webkit-mask-image:linear-gradient(to bottom, transparent 0%, #000 35%);
-  opacity:.55;
+  opacity:.55; transition:opacity .6s ease; will-change:background-position;
 }
-body.fast #grid{animation-duration:.7s;opacity:.8}
+body.fast #grid{animation-duration:1s;opacity:.75}
 @keyframes gridmove{to{background-position:0 90px}}
 
-#app{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center}
-section.screen{width:100%;max-width:1060px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:18px}
+#app{position:relative;z-index:1;min-height:var(--app-h);display:flex;flex-direction:column;align-items:center}
+section.screen{width:100%;max-width:1060px;padding:16px;display:flex;flex-direction:column;align-items:center;gap:18px;animation:screenIn .45s var(--ease-out)}
+@keyframes screenIn{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
 
 /* ---------- pixel UI kit ---------- */
 .title{
@@ -47,11 +56,13 @@ section.screen{width:100%;max-width:1060px;padding:16px;display:flex;flex-direct
     4px 0 0 var(--purple),-4px 0 0 var(--purple),0 4px 0 var(--purple),0 -4px 0 var(--purple),
     4px 4px 0 var(--purple),-4px -4px 0 var(--purple),4px -4px 0 var(--purple),-4px 4px 0 var(--purple),
     8px 8px 0 var(--white);
+  animation:float 3.2s ease-in-out infinite;
 }
-.title.big{font-size:clamp(34px,8vw,76px)}
-.title.mid{font-size:clamp(20px,4.5vw,34px)}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-6px)}}
+.title.big{font-size:clamp(30px,8vw,76px)}
+.title.mid{font-size:clamp(18px,4.5vw,34px)}
 .label{
-  font-family:"Press Start 2P";font-size:clamp(12px,2.4vw,18px);color:var(--white);
+  font-family:"Press Start 2P";font-size:clamp(11px,2.4vw,18px);
   background:var(--lilac);color:var(--purple-d);padding:6px 10px;
   box-shadow:0 0 0 4px var(--purple-d),0 0 0 8px var(--white);
 }
@@ -59,7 +70,7 @@ section.screen{width:100%;max-width:1060px;padding:16px;display:flex;flex-direct
   background:var(--white);padding:6px;position:relative;display:flex;flex-direction:column;
   box-shadow:0 0 0 4px var(--ink), 10px 10px 0 4px rgba(0,0,0,.35);
 }
-.box > .inner{flex:1;background:var(--pink);border:4px solid var(--purple);padding:14px 16px;color:var(--white)}
+.box > .inner{flex:1;min-height:0;background:var(--pink);border:4px solid var(--purple);padding:14px 16px;color:var(--white)}
 .box.purple > .inner{background:var(--purple)}
 .box.dark > .inner{background:var(--bg2);border-color:var(--lilac)}
 
@@ -67,180 +78,277 @@ section.screen{width:100%;max-width:1060px;padding:16px;display:flex;flex-direct
   font-family:"Press Start 2P";font-size:14px;cursor:pointer;border:none;
   background:var(--purple);color:var(--white);padding:14px 18px;position:relative;
   box-shadow:inset -4px -4px 0 var(--purple-d), inset 4px 4px 0 #a48fff, 0 0 0 4px var(--white), 0 0 0 8px var(--ink);
-  transition:transform .05s steps(1);
+  transition:transform .16s var(--ease-spring), filter .16s ease;
 }
-.btn:hover{filter:brightness(1.12)}
-.btn:active{transform:translate(2px,2px)}
+@media (hover:hover){ .btn:hover{filter:brightness(1.12);transform:translateY(-2px)} }
+.btn:active{transform:translateY(2px) scale(.97);transition-duration:.05s}
 .btn.pink{background:var(--pink-d);box-shadow:inset -4px -4px 0 #a2489a, inset 4px 4px 0 var(--pink-l), 0 0 0 4px var(--white), 0 0 0 8px var(--ink)}
 .btn.ghost{background:var(--bg2);box-shadow:inset -4px -4px 0 #15142a, inset 4px 4px 0 #444063, 0 0 0 4px var(--lilac), 0 0 0 8px var(--ink)}
 .btn.small{font-size:10px;padding:9px 11px}
-.btn:disabled{filter:grayscale(1) brightness(.7);cursor:not-allowed}
-.btn.blink{animation:blink 1s steps(2) infinite}
+.btn:disabled{filter:grayscale(1) brightness(.7);cursor:not-allowed;transform:none}
+.btn.blink{animation:pulse 1.2s ease-in-out infinite}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.05);opacity:.75}}
 @keyframes blink{50%{opacity:.35}}
 
 .field{
-  background:var(--ink);color:var(--white);border:none;padding:12px 14px;font-size:26px;width:100%;
-  box-shadow:0 0 0 4px var(--white),0 0 0 8px var(--purple-d);outline:none;
+  background:var(--ink);color:var(--white);border:none;border-radius:0;padding:12px 14px;font-size:26px;width:100%;min-width:0;
+  box-shadow:0 0 0 4px var(--white),0 0 0 8px var(--purple-d);outline:none;transition:box-shadow .2s ease;
+  -webkit-appearance:none;appearance:none;
 }
 .field:focus{box-shadow:0 0 0 4px var(--pink),0 0 0 8px var(--purple-d)}
 .field::placeholder{color:#8a86ad}
 
 .loadbar{width:min(420px,80vw);height:34px;background:var(--white);padding:5px;box-shadow:0 0 0 4px var(--ink)}
-.loadbar > i{display:block;height:100%;width:10%;background:var(--pink);border-right:4px solid var(--pink-d);transition:width .12s steps(3)}
+.loadbar > i{display:block;height:100%;width:10%;background:var(--pink);border-right:4px solid var(--pink-d);transition:width .25s var(--ease-out)}
 
 /* ---------- boot ---------- */
 #boot{justify-content:center;min-height:92vh;gap:26px}
 #boot .pct{font-family:"Press Start 2P";font-size:22px}
 #boot .sub{font-family:"Press Start 2P";font-size:18px;color:var(--white)}
-.gameboy{position:fixed;right:5vw;bottom:14vh;width:clamp(80px,14vw,150px);transform:rotate(12deg);z-index:1;filter:drop-shadow(6px 6px 0 rgba(0,0,0,.35));animation:bob 1.6s steps(2) infinite}
-@keyframes bob{50%{transform:rotate(12deg) translateY(-6px)}}
+.gameboy{position:fixed;right:5vw;bottom:14vh;width:clamp(80px,14vw,150px);z-index:1;filter:drop-shadow(6px 6px 0 rgba(0,0,0,.35));animation:bob 2.4s ease-in-out infinite}
+@keyframes bob{0%,100%{transform:rotate(12deg) translateY(0)}50%{transform:rotate(9deg) translateY(-10px)}}
 .tagline{max-width:560px;text-align:center;font-size:22px}
 
 /* ---------- home ---------- */
 #home{justify-content:center;min-height:92vh}
-.card{width:min(520px,92vw);display:flex;flex-direction:column;gap:18px}
+.card{width:min(520px,100%);display:flex;flex-direction:column;gap:18px}
 .row{display:flex;gap:14px;align-items:center;flex-wrap:wrap}
 .row.center{justify-content:center}
 .muted{color:var(--lilac)}
 .or{font-family:"Press Start 2P";font-size:10px;color:var(--lilac);text-align:center}
 
 /* ---------- lobby ---------- */
-.code{font-family:"Press Start 2P";font-size:clamp(26px,6vw,44px);letter-spacing:8px;color:var(--gold);text-shadow:4px 4px 0 var(--purple-d)}
-.teams{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;width:100%;align-items:start}
-.vs{font-family:"Press Start 2P";font-size:28px;align-self:center;color:var(--gold);text-shadow:4px 4px 0 var(--purple-d)}
-.team{min-height:170px}
+.code{font-family:"Press Start 2P";font-size:clamp(24px,6vw,44px);letter-spacing:6px;color:var(--gold);text-shadow:4px 4px 0 var(--purple-d)}
+.teams{display:grid;grid-template-columns:1fr auto 1fr;gap:16px;width:100%;align-items:stretch}
+.vs{font-family:"Press Start 2P";font-size:28px;align-self:center;color:var(--gold);text-shadow:4px 4px 0 var(--purple-d);animation:float 2s ease-in-out infinite}
+.team{min-height:150px}
 .team h3{font-family:"Press Start 2P";font-size:13px;margin-bottom:10px}
 .team.L .inner{background:var(--L-d)} .team.R .inner{background:var(--R-d)}
-.pl{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:26px}
+.pl{display:flex;align-items:center;gap:10px;padding:4px 0;font-size:26px;animation:msgIn .35s var(--ease-spring);min-width:0}
+.pl span:not(.tag){overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
 .pl svg{width:34px;height:34px;flex:none}
-.pl .tag{font-family:"Press Start 2P";font-size:8px;background:var(--gold);color:var(--ink);padding:3px 5px}
+.pl .tag{font-family:"Press Start 2P";font-size:8px;background:var(--gold);color:var(--ink);padding:3px 5px;flex:none}
 .pl.off{opacity:.45}
 .lobby-grid{display:grid;grid-template-columns:1.2fr 1fr;gap:22px;width:100%}
 .howto li{margin:0 0 6px 20px}
 .howto b{color:var(--gold);font-weight:normal}
 
 /* ---------- chat ---------- */
-.chat{display:flex;flex-direction:column;height:100%;min-height:0}
-.log{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--bg2);min-height:220px;max-height:44vh;
-  box-shadow:inset 0 0 0 4px var(--lilac);scrollbar-width:thin;scrollbar-color:var(--purple) var(--bg2)}
-.msg{max-width:84%;padding:7px 10px 6px;position:relative;animation:pop .18s steps(3)}
-@keyframes pop{from{transform:scale(.6);opacity:0}}
+.chat{display:flex;flex-direction:column;min-height:0;width:100%}
+.chat > .inner{display:flex;flex-direction:column;min-height:0}
+.log{flex:1;overflow-y:auto;overflow-x:hidden;display:flex;flex-direction:column;gap:8px;padding:10px;background:var(--bg2);min-height:0;
+  box-shadow:inset 0 0 0 4px var(--lilac);scrollbar-width:thin;scrollbar-color:var(--purple) var(--bg2);
+  -webkit-overflow-scrolling:touch;overscroll-behavior:contain;scroll-behavior:smooth}
+.lobby-grid .log{height:260px}
+.msg{max-width:84%;padding:7px 10px 6px;position:relative;animation:msgIn .32s var(--ease-spring) both;transform-origin:left bottom}
+.msg.R{transform-origin:right bottom}
+@keyframes msgIn{from{opacity:0;transform:translateY(12px) scale(.9)}to{opacity:1;transform:none}}
 .msg .who{font-family:"Press Start 2P";font-size:9px;opacity:.9;margin-bottom:3px}
-.msg .txt{font-size:24px;word-wrap:break-word}
+.msg .txt{font-size:24px;overflow-wrap:anywhere}
 .msg.L{align-self:flex-start;background:var(--L);color:var(--ink);box-shadow:4px 4px 0 var(--L-d)}
 .msg.R{align-self:flex-end;background:var(--R);color:var(--white);box-shadow:-4px 4px 0 var(--R-d)}
 .msg.me{outline:3px solid var(--white)}
-.msg.sys{align-self:center;background:none;box-shadow:none;color:var(--lilac);font-family:"Press Start 2P";font-size:9px;text-align:center;max-width:100%}
+.msg.hit{animation:msgIn .32s var(--ease-spring) both, bump .35s var(--ease-out) .05s}
+.msg.hit-crit{animation:msgIn .32s var(--ease-spring) both, critGlow 1s ease-out}
+.msg.hit-bad{animation:msgIn .32s var(--ease-spring) both, wobble .45s ease-in-out}
+@keyframes bump{50%{transform:scale(1.04)}}
+@keyframes critGlow{0%{filter:brightness(1.6) drop-shadow(0 0 0 #ff4fd8)}40%{filter:brightness(1.3) drop-shadow(0 0 10px #ff4fd8)}100%{filter:none}}
+@keyframes wobble{20%{transform:translateX(-6px) rotate(-1deg)}40%{transform:translateX(5px) rotate(1deg)}60%{transform:translateX(-3px)}80%{transform:translateX(2px)}}
+.msg.sys{align-self:center;background:none;box-shadow:none;color:var(--lilac);font-family:"Press Start 2P";font-size:9px;text-align:center;max-width:100%;animation:fadeUp .4s var(--ease-out) both}
 .msg.sys.flip{color:var(--gold)} .msg.sys.join{color:var(--good)}
+@keyframes fadeUp{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .verdict{display:flex;flex-wrap:wrap;gap:5px;margin-top:5px;align-items:center}
+.verdict.done > *{animation:chipIn .35s var(--ease-spring) both}
+@keyframes chipIn{from{opacity:0;transform:scale(.4) translateY(4px)}to{opacity:1;transform:none}}
 .verdict .pull{font-family:"Press Start 2P";font-size:11px;background:var(--ink);color:var(--gold);padding:3px 6px}
 .verdict .pull.neg{color:var(--bad)}
 .chip{font-family:"Press Start 2P";font-size:8px;padding:3px 5px;background:var(--ink);color:var(--white)}
 .chip.lol{background:#ffe066;color:var(--ink)} .chip.combo{background:#66e0ff;color:var(--ink)}
-.chip.crit{background:#ff4fd8;color:var(--white);animation:blink .4s steps(2) 4}
+.chip.crit{background:#ff4fd8;color:var(--white);animation:chipIn .35s var(--ease-spring) both, pulse .6s ease-in-out .3s 3}
 .chip.bad{background:var(--bad);color:var(--ink)} .chip.meh{background:#8d88ad;color:var(--ink)} .chip.good{background:var(--good);color:var(--ink)}
 .stars{font-size:18px;letter-spacing:1px;color:var(--gold)}
-.thinking{font-family:"Press Start 2P";font-size:8px;opacity:.8}
+.thinking{font-family:"Press Start 2P";font-size:8px;opacity:.8;animation:pulse 1s ease-in-out infinite}
 .thinking::after{content:"";animation:dots 0.9s steps(4) infinite}
 @keyframes dots{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
-.composer{display:flex;gap:10px;margin-top:12px}
+.composer{display:flex;gap:10px;margin-top:12px;flex:none}
 .composer .field{font-size:24px;padding:10px 12px}
-.cool{height:10px;background:var(--ink);margin-top:10px;box-shadow:0 0 0 3px var(--white)}
+.composer .btn{flex:none}
+.cool{height:10px;background:var(--ink);margin-top:10px;box-shadow:0 0 0 3px var(--white);flex:none;transition:box-shadow .2s}
 .cool > i{display:block;height:100%;width:100%;background:var(--pink)}
-.emotes{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
-.emotes button{background:var(--bg2);border:none;cursor:pointer;font-size:22px;padding:4px 7px;box-shadow:0 0 0 3px var(--lilac)}
-.emotes button:active{transform:translate(2px,2px)}
+.emotes{display:flex;gap:8px;margin-top:10px;flex:none;overflow-x:auto;padding:4px 3px 6px;scrollbar-width:none}
+.emotes::-webkit-scrollbar{display:none}
+.emotes button{flex:none;background:var(--bg2);border:none;cursor:pointer;font-size:22px;padding:4px 7px;box-shadow:0 0 0 3px var(--lilac);transition:transform .15s var(--ease-spring)}
+@media (hover:hover){ .emotes button:hover{transform:translateY(-3px) scale(1.1)} }
+.emotes button:active{transform:scale(.85)}
 
-/* ---------- game ---------- */
-#game{gap:14px;padding-top:10px}
-.hud{display:grid;grid-template-columns:auto 1fr auto;gap:18px;width:100%;align-items:stretch}
-.timer{font-family:"Press Start 2P";font-size:26px;display:flex;align-items:center;justify-content:center;min-width:120px}
-.timer.hurry{color:var(--bad);animation:blink .5s steps(2) infinite}
-.prompt .inner{font-size:clamp(22px,3.4vw,32px);text-align:center;min-height:64px;display:flex;align-items:center;justify-content:center}
+/* ---------- game (full-height layout, chat takes the remaining space) ---------- */
+#game{height:var(--app-h);gap:12px;padding:10px 16px 12px;justify-content:flex-start;overflow:hidden}
+#game > *{flex:none}
+#game .game-grid{flex:1 1 auto;min-height:0;width:100%;display:flex}
+#game-chat-slot{flex:1;min-height:0;display:flex;width:100%}
+#game #chat{flex:1;min-height:0}
+#game .log{height:auto;min-height:70px}
+.hud{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:18px;width:100%;align-items:stretch}
+.timer{font-family:"Press Start 2P";font-size:26px;display:flex;align-items:center;justify-content:center;min-width:120px;background:var(--purple)!important;transition:color .3s}
+.timer.hurry{color:var(--bad);animation:pulse .5s ease-in-out infinite}
+.prompt{perspective:600px}
+.prompt .inner{font-size:clamp(20px,3.4vw,32px);text-align:center;min-height:64px;display:flex;align-items:center;justify-content:center;overflow-wrap:anywhere}
 .prompt .step{font-family:"Press Start 2P";font-size:9px;display:block;margin-bottom:6px;color:var(--purple-d)}
-.prompt.flip{animation:flip .5s steps(4)}
-@keyframes flip{0%{transform:rotateX(90deg)}100%{transform:none}}
-.jev{font-family:"Press Start 2P";font-size:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-width:84px}
-.jev .dot{width:14px;height:14px;background:var(--good);box-shadow:0 0 0 3px var(--ink);animation:blink 1.2s steps(2) infinite}
+.prompt.flip .inner{animation:flip .6s var(--ease-spring)}
+@keyframes flip{0%{transform:rotateX(90deg);opacity:0}100%{transform:none;opacity:1}}
+.hud-side .inner{background:var(--bg2)!important;border-color:var(--lilac)!important;padding:10px}
+.jev{font-family:"Press Start 2P";font-size:8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-width:84px}
+.jev-status{display:flex;flex-direction:column;align-items:center;gap:6px}
+.jev .dot{width:14px;height:14px;background:var(--good);box-shadow:0 0 0 3px var(--ink);animation:pulse 1.4s ease-in-out infinite}
 .jev.mock .dot{background:var(--gold)}
 
-.event{position:absolute;z-index:5;top:10px;left:50%;width:min(560px,80%);transform:translateX(-50%);text-align:center;font-family:"Press Start 2P";font-size:clamp(14px,3vw,24px);padding:12px;color:var(--ink);
-  background:repeating-linear-gradient(45deg,var(--gold) 0 18px,#ffb84d 18px 36px);box-shadow:0 0 0 4px var(--ink),0 0 0 8px var(--white);
-  animation:shake .25s steps(2) infinite;position:relative}
+.event{position:absolute;z-index:5;top:10px;left:50%;width:min(560px,80%);text-align:center;font-family:"Press Start 2P";font-size:clamp(12px,3vw,24px);padding:12px;color:var(--ink);
+  background:repeating-linear-gradient(45deg,var(--gold) 0 18px,#ffb84d 18px 36px);background-size:51px 51px;box-shadow:0 0 0 4px var(--ink),0 0 0 8px var(--white);
+  transform:translateX(-50%);animation:evIn .45s var(--ease-spring) both, stripes .8s linear infinite, evWobble 1.6s ease-in-out .45s infinite}
 .event .evbar{position:absolute;left:0;bottom:0;height:6px;background:var(--ink)}
-@keyframes shake{50%{transform:translateX(calc(-50% + 3px)) rotate(.4deg)}}
+@keyframes evIn{from{transform:translate(-50%,-140%) scale(.8);opacity:0}to{transform:translateX(-50%);opacity:1}}
+@keyframes evWobble{0%,100%{transform:translateX(-50%) rotate(-.6deg)}50%{transform:translateX(-50%) rotate(.6deg)}}
+@keyframes stripes{to{background-position:51px 0}}
 
-.arena{position:relative;width:100%;height:170px;background:rgba(27,25,48,.55);box-shadow:inset 0 0 0 4px var(--lilac);overflow:hidden}
+.arena{position:relative;width:100%;height:170px;background:rgba(27,25,48,.55);box-shadow:inset 0 0 0 4px var(--lilac);overflow:hidden;--danger-L:0;--danger-R:0}
+.danger{position:absolute;top:0;bottom:0;width:30%;pointer-events:none;transition:opacity .2s}
+.danger.L{left:0;background:linear-gradient(90deg,rgba(247,169,232,.45),transparent);opacity:var(--danger-L)}
+.danger.R{right:0;background:linear-gradient(270deg,rgba(143,123,255,.5),transparent);opacity:var(--danger-R)}
 .zone{position:absolute;top:0;bottom:0;width:4px;background:repeating-linear-gradient(to bottom,var(--white) 0 8px,transparent 8px 16px)}
 .zone.L{left:14%} .zone.R{left:86%}
 .zone-label{position:absolute;top:8px;font-family:"Press Start 2P";font-size:8px}
 .zone-label.L{left:calc(14% + 8px);color:var(--L)} .zone-label.R{right:calc(14% + 8px);color:var(--R)}
 .rope{position:absolute;left:9%;right:9%;top:96px;height:12px;
   background:repeating-linear-gradient(90deg,#e8c48f 0 12px,#b98a52 12px 20px);box-shadow:0 4px 0 #6d4b28}
-.knot{position:absolute;top:58px;width:28px;margin-left:-14px;transition:left .45s cubic-bezier(.2,1.6,.4,1)}
+.knot{position:absolute;left:50%;top:58px;width:28px;margin-left:-14px;will-change:transform;transform-origin:50% 100%}
 .knot .flag{width:28px;height:28px;background:var(--gold);box-shadow:0 0 0 4px var(--ink)}
 .knot .pole{width:6px;height:26px;background:var(--ink);margin:0 auto}
 .side{position:absolute;top:44px;display:flex;gap:0}
 .side.L{left:1%} .side.R{right:1%;flex-direction:row-reverse}
-.side svg{width:64px;height:64px;animation:tug .5s steps(2) infinite}
+.side svg{width:64px;height:64px;animation:tug 1s ease-in-out infinite;will-change:transform}
+.side svg:nth-child(2){animation-delay:-.3s} .side svg:nth-child(3){animation-delay:-.6s}
 .side svg + svg{margin-left:-30px}
 .side.R svg + svg{margin-left:0;margin-right:-30px}
-.side.yank svg{animation:yank .3s steps(2)}
-@keyframes tug{50%{transform:translateY(-3px)}}
-@keyframes yank{50%{transform:translateX(-10px) rotate(-8deg)}}
+.side.yank svg{animation:yank .45s var(--ease-out)}
+@keyframes tug{0%,100%{transform:translateY(0) rotate(-2deg)}50%{transform:translateY(-4px) rotate(2deg)}}
+@keyframes yank{0%{transform:none}35%{transform:translateX(-14px) rotate(-12deg) scaleY(.92)}100%{transform:none}}
 .side.R.yank svg{animation-name:yankR}
-@keyframes yankR{50%{transform:translateX(10px) rotate(8deg)}}
-.meter{position:absolute;left:0;right:0;bottom:0;height:10px;display:flex}
-.meter i{display:block;height:100%;transition:width .45s steps(6)}
-.meter .mL{background:var(--L)} .meter .mR{background:var(--R)}
-.float{position:absolute;font-family:"Press Start 2P";font-size:18px;pointer-events:none;animation:rise 1.1s steps(8) forwards;text-shadow:3px 3px 0 var(--ink);white-space:nowrap;transform:translateX(-50%)}
+@keyframes yankR{0%{transform:none}35%{transform:translateX(14px) rotate(12deg) scaleY(.92)}100%{transform:none}}
+.meter{position:absolute;left:0;right:0;bottom:0;height:10px;overflow:hidden}
+.meter i{position:absolute;top:0;bottom:0;width:100%;display:block;will-change:transform;transform:scaleX(.5)}
+.meter .mL{left:0;transform-origin:left;background:var(--L)} .meter .mR{right:0;transform-origin:right;background:var(--R)}
+.float{position:absolute;font-family:"Press Start 2P";font-size:18px;pointer-events:none;text-shadow:3px 3px 0 var(--ink);white-space:nowrap;
+  animation:rise 1.3s var(--ease-out) forwards;will-change:transform,opacity}
 .float.crit{font-size:26px;color:#ff4fd8}
-@keyframes rise{to{transform:translate(-50%,-80px);opacity:0}}
-.emo{position:absolute;bottom:10px;font-size:34px;pointer-events:none;animation:emo 1.6s ease-out forwards}
-@keyframes emo{to{transform:translateY(-150px) scale(1.4);opacity:0}}
-.game-grid{display:grid;grid-template-columns:1fr;gap:10px;width:100%}
-#game .log{height:clamp(150px,calc(100dvh - 570px),52vh);max-height:none;min-height:0}
-.lobby-grid .log{height:260px;max-height:none}
-body.shake #app{animation:screenshake .3s steps(3)}
-@keyframes screenshake{25%{transform:translate(-6px,3px)}50%{transform:translate(5px,-4px)}75%{transform:translate(-3px,-2px)}}
+@keyframes rise{0%{transform:translate(-50%,10px) scale(.5);opacity:0}15%{transform:translate(-50%,-6px) scale(1.2);opacity:1}30%{transform:translate(-50%,-14px) scale(1)}100%{transform:translate(-50%,-80px) scale(.95);opacity:0}}
+.emo{position:absolute;bottom:10px;font-size:34px;pointer-events:none;animation:emo 1.8s var(--ease-out) forwards;will-change:transform,opacity;z-index:6}
+@keyframes emo{0%{transform:translateY(0) scale(.4);opacity:0}15%{transform:translateY(-20px) scale(1.2);opacity:1}100%{transform:translateY(-150px) scale(1) rotate(12deg);opacity:0}}
+body.shake #app{animation:screenshake .4s cubic-bezier(.36,.07,.19,.97)}
+@keyframes screenshake{10%,90%{transform:translate(-1px,0)}20%,80%{transform:translate(3px,-1px)}30%,50%,70%{transform:translate(-5px,2px)}40%,60%{transform:translate(5px,-2px)}}
 
 /* ---------- overlays ---------- */
-.overlay{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;background:rgba(30,28,50,.78);padding:16px}
-#countdown .n{font-family:"Press Start 2P";font-size:min(30vw,200px);color:var(--pink-l);text-shadow:10px 10px 0 var(--purple);animation:pop .3s steps(3)}
-.result{width:min(620px,94vw);display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center}
+.overlay{position:fixed;inset:0;z-index:50;display:flex;justify-content:center;background:rgba(30,28,50,.8);padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch;
+  animation:fadeIn .3s ease both;backdrop-filter:blur(2px)}
+@keyframes fadeIn{from{opacity:0}}
+.overlay > *{margin:auto}
+#countdown .n{font-family:"Press Start 2P";font-size:min(30vw,200px);color:var(--pink-l);text-shadow:10px 10px 0 var(--purple);animation:cdPop .9s var(--ease-out) both}
+@keyframes cdPop{0%{transform:scale(2.2);opacity:0}25%{transform:scale(.92);opacity:1}40%{transform:scale(1.04)}55%{transform:scale(1)}100%{transform:scale(.9);opacity:.85}}
+.result{width:min(620px,100%);display:flex;flex-direction:column;gap:14px;align-items:center;text-align:center;padding:10px 0 20px}
+.result > *{animation:msgIn .5s var(--ease-spring) both}
+.result > *:nth-child(2){animation-delay:.1s} .result > *:nth-child(3){animation-delay:.2s} .result > *:nth-child(4){animation-delay:.3s}
 .result .inner{width:100%}
-.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;width:100%}
+.stat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;width:100%}
 .stat{background:var(--ink);padding:10px;box-shadow:0 0 0 3px var(--lilac)}
 .stat .k{font-family:"Press Start 2P";font-size:8px;color:var(--lilac);margin-bottom:6px}
-.stat .v{font-size:24px}
-.quote{font-size:24px;background:var(--ink);padding:10px;box-shadow:0 0 0 3px var(--gold);width:100%}
+.stat .v{font-size:24px;overflow-wrap:anywhere}
+.quote{font-size:24px;background:var(--ink);padding:10px;box-shadow:0 0 0 3px var(--gold);width:100%;overflow-wrap:anywhere}
 .quote small{display:block;font-family:"Press Start 2P";font-size:8px;color:var(--gold);margin-bottom:6px}
-.confetti{position:fixed;top:-20px;width:10px;height:10px;z-index:60;pointer-events:none;animation:fall linear forwards}
+.confetti{position:fixed;top:-20px;width:10px;height:10px;z-index:60;pointer-events:none;animation:fall linear forwards;will-change:transform}
 @keyframes fall{to{transform:translateY(110vh) rotate(720deg)}}
 
-#toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:80;font-family:"Press Start 2P";font-size:10px;background:var(--bad);color:var(--ink);padding:10px 14px;box-shadow:0 0 0 4px var(--ink)}
+#toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);z-index:80;font-family:"Press Start 2P";font-size:10px;background:var(--bad);color:var(--ink);padding:10px 14px;box-shadow:0 0 0 4px var(--ink);animation:toastIn .35s var(--ease-spring);max-width:92vw;text-align:center}
+@keyframes toastIn{from{transform:translate(-50%,-30px);opacity:0}}
 #audio-ctl{position:fixed;right:12px;top:12px;z-index:70;display:flex;gap:8px}
-#audio-ctl button{width:44px;height:44px;border:none;cursor:pointer;background:var(--bg2);font-size:20px;box-shadow:0 0 0 3px var(--lilac),0 0 0 6px var(--ink)}
+#audio-ctl button{width:44px;height:44px;border:none;cursor:pointer;background:var(--bg2);font-size:20px;box-shadow:0 0 0 3px var(--lilac),0 0 0 6px var(--ink);transition:transform .15s var(--ease-spring),opacity .2s}
+#audio-ctl button:active{transform:scale(.88)}
 #audio-ctl button.off{opacity:.4}
+#audio-ctl.in-hud{position:static;gap:6px}
+#audio-ctl.in-hud button{width:32px;height:32px;font-size:15px;box-shadow:0 0 0 3px var(--lilac)}
 .footer{font-family:"Press Start 2P";font-size:8px;color:var(--lilac);opacity:.7;margin-top:8px;text-align:center}
 
+/* ---------- tablet / phone ---------- */
 @media (max-width:760px){
   body{font-size:20px}
+  section.screen:not(#game){padding:64px 14px 24px}
+  #boot,#home{min-height:auto}
   .lobby-grid{grid-template-columns:1fr}
   .teams{grid-template-columns:1fr}
-  .vs{justify-self:center}
-  .hud{grid-template-columns:auto 1fr}
-  .hud > .box:last-child{display:none}
-  .prompt .inner{font-size:19px;min-height:48px;padding:8px 10px}
-  #audio-ctl{top:auto;bottom:10px;right:10px}
-  #audio-ctl button{width:36px;height:36px;font-size:16px}
-  #game{gap:10px}
-  .timer{font-size:18px;min-width:84px}
-  .arena{height:150px}
-  .side svg{width:48px;height:48px}
-  .rope{top:84px} .knot{top:48px}
-  .side{top:40px}
-  #game .log{height:clamp(130px,calc(100dvh - 520px),50vh)}
-  .event{top:6px;width:92%;font-size:12px;padding:8px}
-  .gameboy{display:none}
+  .team{min-height:0}
+  .vs{justify-self:center;font-size:20px}
+  .gameboy{width:64px;right:10px;bottom:10px;opacity:.9}
+  #game{padding:8px 10px 10px;gap:10px}
+  .hud{gap:12px;grid-template-columns:auto minmax(0,1fr) auto}
+  .hud .box{padding:4px}
+  .timer{font-size:15px;min-width:0;padding:8px 8px!important}
+  .prompt .inner{font-size:18px;min-height:0;padding:8px 10px}
+  .prompt .step{font-size:7px;margin-bottom:4px}
+  .hud-side .inner{padding:6px!important}
+  .jev{min-width:0;gap:6px;flex-direction:row}
+  #jev-label{display:none}
+  #audio-ctl.in-hud{flex-direction:column}
+  #audio-ctl.in-hud button{width:28px;height:28px;font-size:13px}
+  .side svg{width:46px;height:46px}
+  .side svg + svg{margin-left:-24px} .side.R svg + svg{margin-right:-24px}
+  .zone-label{font-size:6px}
+  .event{top:5px;width:94%;font-size:9px;padding:5px 6px;box-shadow:0 0 0 3px var(--ink),0 0 0 5px var(--white)}
+  .event .evbar{height:3px}
+  .arena{height:140px}
+  .side{top:42px} .rope{top:82px} .knot{top:48px}
+  .msg{max-width:92%}
+  .msg .txt{font-size:21px}
+  .composer{margin-top:8px;gap:8px}
+  .composer .field{font-size:20px;padding:9px 10px}
+  .cool{margin-top:8px;height:8px}
+  .emotes{margin-top:8px;gap:7px}
+  .emotes{gap:5px;overflow:visible}
+  .emotes button{flex:1 1 0;min-width:0;font-size:18px;padding:3px 0}
+  .btn{font-size:12px;padding:12px 14px}
+  .btn.small{font-size:9px}
+  .code{letter-spacing:4px}
+}
+/* very short viewports: phone with keyboard open, or landscape */
+body.short .arena{height:104px}
+body.short .side{top:36px} body.short .side svg{width:36px;height:36px}
+body.short .rope{top:66px} body.short .knot{top:36px}
+body.short .event{font-size:8px;padding:4px 5px}
+body.short .jev{flex-direction:row}
+body.short #audio-ctl.in-hud{flex-direction:row}
+body.short #audio-ctl.in-hud button{width:26px;height:26px;font-size:12px}
+body.short .hud-side .inner{padding:4px!important}
+body.short .knot .flag{width:22px;height:22px} body.short .knot{width:22px;margin-left:-11px}
+body.short .knot .pole{height:18px}
+body.short .zone-label{display:none}
+body.short .prompt .step{display:none}
+body.short .prompt .inner{font-size:16px;padding:6px 8px}
+body.short .timer{font-size:13px}
+body.short #game{gap:8px;padding-top:6px}
+body.short .emotes{margin-top:6px}
+body.short .emotes button{font-size:16px;padding:2px 5px}
+body.short .cool{display:none}
+/* phone landscape: HUD + arena on the left, chat on the right */
+body.land #game{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:auto 1fr;max-width:none;align-items:stretch}
+body.land #game .hud{grid-column:1;grid-row:1}
+body.land #game .arena{grid-column:1;grid-row:2;height:auto;min-height:96px;align-self:stretch}
+body.land #game .game-grid{grid-column:2;grid-row:1 / span 2;min-height:0}
+body.land .arena .side{top:calc(50% - 30px)} body.land .arena .rope{top:calc(50% + 4px)} body.land .arena .knot{top:calc(50% - 28px)}
+body.land .emotes button{font-size:15px;padding:2px 4px}
+body.land .composer .field{font-size:18px;padding:6px 8px}
+@media (max-width:380px){
+  .timer{font-size:12px}
+  .prompt .inner{font-size:16px}
+  .composer .btn{padding:10px 9px}
+}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;animation-iteration-count:1!important;transition-duration:.01ms!important}
 }

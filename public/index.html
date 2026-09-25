@@ -14,7 +14,7 @@
 </head>
 <body>
 <div id="stars"></div>
-<div id="grid"></div>
+<div id="grid-wrap"><div id="grid"></div></div>
 
 <div id="audio-ctl">
   <button id="btn-music" title="Music">♪</button>
@@ -101,17 +101,17 @@
     <div class="hud">
       <div class="box"><div class="inner timer" id="timer" style="background:var(--purple)">2:00</div></div>
       <div class="box prompt" id="prompt-box"><div class="inner"><div><span class="step" id="prompt-step">PROMPT 1/4</span><span id="prompt-text">…</span></div></div></div>
-      <div class="box"><div class="inner jev" id="jev-ind" style="background:var(--bg2);border-color:var(--lilac)"><div class="dot"></div><span id="jev-label">JEV LIVE</span><span id="jev-ms"></span></div></div>
+      <div class="box hud-side"><div class="inner jev" id="jev-ind"><div class="jev-status"><div class="dot"></div><span id="jev-label">JEV LIVE</span></div><div id="hud-ctl"></div></div></div>
     </div>
     <div class="arena" id="arena">
       <div class="zone L"></div><div class="zone R"></div>
       <div class="event hidden" id="event"><span id="event-label"></span><div class="evbar" id="event-bar"></div></div>
       <div class="zone-label L">PINK WINS</div><div class="zone-label R">PURPLE WINS</div>
-      <div class="rope"></div>
+      <div class="rope" id="rope"></div><div class="danger L"></div><div class="danger R"></div>
       <div class="side L" id="side-L"></div>
       <div class="side R" id="side-R"></div>
       <div class="knot" id="knot" style="left:50%"><div class="flag"></div><div class="pole"></div></div>
-      <div class="meter"><i class="mL" id="mL" style="width:50%"></i><i class="mR" id="mR" style="width:50%"></i></div>
+      <div class="meter"><i class="mL" id="mL"></i><i class="mR" id="mR"></i></div>
     </div>
     <div class="game-grid"><div id="game-chat-slot"></div></div>
   </section>

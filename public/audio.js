@@ -3,6 +3,8 @@ const Audio8 = (() => {
   let ctx = null, master, sfxBus, musicBus;
   let sfxOn = load("tow_sfx", true), musicOn = load("tow_music", true);
   let track = null, step = 0, nextT = 0, timer = null, tempo = 120;
+  let silentEl = null;
+  const MUSIC_VOL = 0.34, SFX_VOL = 0.6;
 
   function load(k, d) { try { const v = localStorage.getItem(k); return v === null ? d : v === "1"; } catch { return d; } }
   function save(k, v) { try { localStorage.setItem(k, v ? "1" : "0"); } catch {} }
@@ -11,10 +13,47 @@ const Audio8 = (() => {
     if (ctx) { if (ctx.state === "suspended") ctx.resume(); return; }
     const AC = window.AudioContext || window.webkitAudioContext;
     if (!AC) return;
-    ctx = new AC();
-    master = ctx.createGain(); master.gain.value = 0.7; master.connect(ctx.destination);
-    sfxBus = ctx.createGain(); sfxBus.gain.value = sfxOn ? 0.55 : 0; sfxBus.connect(master);
-    musicBus = ctx.createGain(); musicBus.gain.value = musicOn ? 0.22 : 0; musicBus.connect(master);
+    try { ctx = new AC({ latencyHint: "interactive" }); } catch { ctx = new AC(); }
+    // compressor = louder + consistent on tiny phone speakers
+    const comp = ctx.createDynamicsCompressor();
+    comp.threshold.value = -20; comp.knee.value = 12; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.2;
+    master = ctx.createGain(); master.gain.value = 0.9;
+    master.connect(comp); comp.connect(ctx.destination);
+    sfxBus = ctx.createGain(); sfxBus.gain.value = sfxOn ? SFX_VOL : 0; sfxBus.connect(master);
+    musicBus = ctx.createGain(); musicBus.gain.value = musicOn ? MUSIC_VOL : 0; musicBus.connect(master);
+    ctx.onstatechange = () => { if (ctx.state !== "running" && !document.hidden && silentEl) ctx.resume().catch(() => {}); };
+    document.addEventListener("visibilitychange", () => {
+      if (!ctx) return;
+      if (document.hidden) ctx.suspend().catch(() => {});
+      else { ctx.resume().catch(() => {}); if (track) nextT = ctx.currentTime + 0.05; }
+    });
+  }
+
+  // Phones: must be called from inside a tap. iOS mutes Web Audio when the ring/silent
+  // switch is on unless a media element is playing, so we loop a silent WAV + set the
+  // audio session to "playback" where supported.
+  function silentWavUrl() {
+    const sr = 8000, n = sr / 2, buf = new ArrayBuffer(44 + n * 2), v = new DataView(buf);
+    const w = (o, str) => [...str].forEach((c, i) => v.setUint8(o + i, c.charCodeAt(0)));
+    w(0, "RIFF"); v.setUint32(4, 36 + n * 2, true); w(8, "WAVE"); w(12, "fmt ");
+    v.setUint32(16, 16, true); v.setUint16(20, 1, true); v.setUint16(22, 1, true);
+    v.setUint32(24, sr, true); v.setUint32(28, sr * 2, true); v.setUint16(32, 2, true); v.setUint16(34, 16, true);
+    w(36, "data"); v.setUint32(40, n * 2, true);
+    return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+  }
+  function unlock() {
+    init();
+    if (!ctx) return;
+    try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch {}
+    if (!silentEl) {
+      silentEl = document.createElement("audio");
+      silentEl.setAttribute("playsinline", ""); silentEl.setAttribute("webkit-playsinline", "");
+      silentEl.loop = true; silentEl.preload = "auto"; silentEl.src = silentWavUrl();
+    }
+    if (silentEl.paused) silentEl.play().catch(() => {});
+    if (ctx.state !== "running") ctx.resume().catch(() => {});
+    // prime with a 1-sample buffer (old iOS needs a sound started inside the gesture)
+    try { const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0); } catch {}
   }
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
@@ -76,23 +115,23 @@ const Audio8 = (() => {
     lobby: {
       bpm: 96, play(s, t, d) {
         const bar = Math.floor(s / 16) % 4, st = s % 16, c = CH[bar];
-        if (st % 4 === 0) tone(musicBus, mtof(c[0] - 12), t, d * 3, { type: "triangle", vol: 0.5 });
-        if (st % 2 === 0) tone(musicBus, mtof(c[(st / 2) % 3] + 12), t, d * 1.5, { type: "square", vol: 0.08 });
+        if (st % 4 === 0) { tone(musicBus, mtof(c[0] - 12), t, d * 3, { type: "triangle", vol: 0.45 }); tone(musicBus, mtof(c[0]), t, d * 2, { type: "square", vol: 0.06 }); }
+        if (st % 2 === 0) tone(musicBus, mtof(c[(st / 2) % 3] + 12), t, d * 1.5, { type: "square", vol: 0.12 });
         const mel = [76, null, 79, null, 81, null, 79, 76, null, 74, null, 72, 74, null, null, null];
-        if (bar % 2 === 1 && mel[st]) tone(musicBus, mtof(mel[st]), t, d * 1.8, { type: "triangle", vol: 0.22 });
+        if (bar % 2 === 1 && mel[st]) tone(musicBus, mtof(mel[st]), t, d * 1.8, { type: "square", vol: 0.12 });
         if (st % 4 === 2) noise(musicBus, t, 0.03, { vol: 0.05, hp: 7000 });
       }
     },
     battle: {
       bpm: 150, play(s, t, d) {
         const bar = Math.floor(s / 16) % 4, st = s % 16, c = CH[bar];
-        tone(musicBus, mtof(c[0] - 24 + (st % 2 ? 12 : 0)), t, d * 0.9, { type: "square", vol: 0.2 });
-        tone(musicBus, mtof(c[st % 3] + 12 + (st % 6 >= 3 ? 12 : 0)), t, d * 0.8, { type: "square", vol: 0.07 });
+        tone(musicBus, mtof(c[0] - 12 + (st % 2 ? 12 : 0)), t, d * 0.9, { type: "square", vol: 0.16 });
+        tone(musicBus, mtof(c[st % 3] + 12 + (st % 6 >= 3 ? 12 : 0)), t, d * 0.8, { type: "square", vol: 0.1 });
         if (st % 4 === 0) tone(musicBus, 150, t, 0.12, { type: "sine", vol: 0.7, slide: 0.3 });
         if (st % 8 === 4) noise(musicBus, t, 0.12, { vol: 0.25, hp: 1500 });
         if (st % 2 === 1) noise(musicBus, t, 0.03, { vol: 0.08, hp: 8000 });
         const lead = [81, null, 79, 81, null, 84, null, 83, 81, null, 79, null, 76, null, 79, null];
-        if (bar >= 2 && lead[st]) tone(musicBus, mtof(lead[st]), t, d * 1.5, { type: "triangle", vol: 0.25 });
+        if (bar >= 2 && lead[st]) tone(musicBus, mtof(lead[st]), t, d * 1.5, { type: "square", vol: 0.13 });
       }
     }
   };
@@ -107,6 +146,7 @@ const Audio8 = (() => {
   }
   function play(name, bpmOverride) {
     if (!ctx) return;
+    if (ctx.state !== "running") ctx.resume().catch(() => {});
     if (track === name && !bpmOverride) return;
     track = name; tempo = bpmOverride || TRACKS[name].bpm;
     if (!bpmOverride) step = 0;
@@ -116,11 +156,11 @@ const Audio8 = (() => {
   function stop() { track = null; clearInterval(timer); }
 
   return {
-    init, play, stop,
+    init, unlock, play, stop,
     speedUp: bpm => { if (track) tempo = bpm; },
     sfx: name => { if (ctx && sfxOn && SFX[name]) try { SFX[name](); } catch {} },
-    toggleSfx() { sfxOn = !sfxOn; save("tow_sfx", sfxOn); if (sfxBus) sfxBus.gain.value = sfxOn ? 0.55 : 0; return sfxOn; },
-    toggleMusic() { musicOn = !musicOn; save("tow_music", musicOn); if (musicBus) musicBus.gain.value = musicOn ? 0.22 : 0; return musicOn; },
+    toggleSfx() { sfxOn = !sfxOn; save("tow_sfx", sfxOn); if (sfxBus) sfxBus.gain.value = sfxOn ? SFX_VOL : 0; return sfxOn; },
+    toggleMusic() { musicOn = !musicOn; save("tow_music", musicOn); if (musicBus) musicBus.gain.value = musicOn ? MUSIC_VOL : 0; return musicOn; },
     get sfxOn() { return sfxOn; }, get musicOn() { return musicOn; }
   };
 })();

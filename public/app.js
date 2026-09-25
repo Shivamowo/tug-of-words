@@ -63,7 +63,26 @@
     if (id === "lobby") $("lobby-chat-slot").appendChild(chat);
     if (id === "game") $("game-chat-slot").appendChild(chat);
     document.body.classList.toggle("fast", id === "game");
+    document.body.classList.toggle("in-game", id === "game");
+    const ctl = $("audio-ctl");
+    if (id === "game") { $("hud-ctl").appendChild(ctl); ctl.classList.add("in-hud"); }
+    else if (ctl.classList.contains("in-hud")) { document.body.appendChild(ctl); ctl.classList.remove("in-hud"); }
+    if (id === "game") fitViewport();
   }
+
+  // ---------- viewport: follow mobile keyboard / browser bars ----------
+  function fitViewport() {
+    const vv = window.visualViewport;
+    const h = vv ? vv.height : window.innerHeight;
+    document.documentElement.style.setProperty("--app-h", h + "px");
+    document.body.classList.toggle("short", h < 560);
+    const w = vv ? vv.width : window.innerWidth;
+    document.body.classList.toggle("land", h < 520 && w > h * 1.3 && w >= 560);
+    if (S.screen === "game") window.scrollTo(0, 0);
+  }
+  (window.visualViewport || window).addEventListener("resize", fitViewport);
+  window.addEventListener("orientationchange", () => setTimeout(fitViewport, 250));
+  fitViewport();
   function toast(t) {
     const el = $("toast"); el.textContent = t; el.classList.remove("hidden");
     A.sfx("error"); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.add("hidden"), 2600);
@@ -71,9 +90,11 @@
 
   // ---------- audio controls ----------
   function paintAudio() { $("btn-music").classList.toggle("off", !A.musicOn); $("btn-sfx").classList.toggle("off", !A.sfxOn); }
-  $("btn-music").onclick = () => { A.init(); A.toggleMusic(); paintAudio(); };
+  $("btn-music").onclick = () => { A.unlock(); A.toggleMusic(); paintAudio(); };
   $("btn-sfx").onclick = () => { A.init(); A.toggleSfx(); paintAudio(); A.sfx("click"); };
   paintAudio();
+  const unlock = () => A.unlock();
+  ["pointerdown", "touchend", "keydown"].forEach(ev => document.addEventListener(ev, unlock, { passive: true }));
   function music(mode) {
     if (S.musicMode === mode) return; S.musicMode = mode;
     if (mode === "none") A.stop(); else A.play(mode);
@@ -89,7 +110,7 @@
     }, 130);
   })();
   $("btn-start").onclick = () => {
-    A.init(); A.sfx("go"); music("lobby");
+    A.unlock(); A.sfx("go"); music("lobby");
     show("home");
     $("in-name").value = S.name;
     if (S.joinCode) {
@@ -208,11 +229,23 @@
     if (r.phase === "playing" && prev?.phase === "countdown") setTimeout(() => $("in-msg").focus(), 30);
   }
 
-  function setRope(v) {
-    const pct = 50 + v * 0.36;
-    $("knot").style.left = pct + "%";
-    $("mL").style.width = (50 - v / 2) + "%";
-    $("mR").style.width = (50 + v / 2) + "%";
+  const ropeFx = { target: 0, shown: 0, vel: 0 };
+  function setRope(v) { ropeFx.target = v; }
+  function drawRope() {
+    // critically-damped-ish spring toward target: smooth, with a little overshoot
+    const k = 0.09, damp = 0.78;
+    ropeFx.vel = (ropeFx.vel + (ropeFx.target - ropeFx.shown) * k) * damp;
+    ropeFx.shown += ropeFx.vel;
+    if (Math.abs(ropeFx.target - ropeFx.shown) < 0.01 && Math.abs(ropeFx.vel) < 0.01) { ropeFx.shown = ropeFx.target; ropeFx.vel = 0; }
+    const v = ropeFx.shown;
+    const arena = $("arena"); const w = arena.clientWidth;
+    const tilt = Math.max(-18, Math.min(18, ropeFx.vel * 6));
+    $("knot").style.transform = `translate3d(${(v * 0.36 / 100) * w}px,0,0) rotate(${tilt}deg)`;
+    $("mL").style.transform = `scaleX(${(50 - v / 2) / 100})`;
+    $("mR").style.transform = `scaleX(${(50 + v / 2) / 100})`;
+    $("rope").style.backgroundPosition = `${v * 3}px 0`;
+    arena.style.setProperty("--danger-L", Math.max(0, (-v - 55) / 45));
+    arena.style.setProperty("--danger-R", Math.max(0, (v - 55) / 45));
   }
 
   // ---------- frame loop: timers ----------
@@ -227,13 +260,13 @@
         const label = left > 3 ? "3" : left >= 1 ? String(left) : "GO!";
         cd.classList.remove("hidden");
         if (S.cdShown !== label) { S.cdShown = label; const n = $("cd-n"); n.textContent = label; n.style.animation = "none"; void n.offsetWidth; n.style.animation = ""; A.sfx(label === "GO!" ? "go" : "count"); }
-        $("timer").textContent = "2:00";
+        if (S.tt !== "2:00") { S.tt = "2:00"; $("timer").textContent = "2:00"; }
       } else {
         $("countdown").classList.add("hidden");
       }
       if (r.phase === "playing") {
         const left = r.endsAt - now;
-        $("timer").textContent = fmt(left);
+        const tt = fmt(left); if (S.tt !== tt) { S.tt = tt; $("timer").textContent = tt; }
         const hurry = left < 20000;
         $("timer").classList.toggle("hurry", hurry);
         if (hurry && !S.hurry) { S.hurry = true; A.speedUp(178); }
@@ -245,6 +278,7 @@
         $("event-bar").style.width = frac * 100 + "%";
       }
     }
+    if (S.screen === "game") drawRope();
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
@@ -276,13 +310,14 @@
     const d = document.getElementById("msg-" + j.id);
     if (d) {
       const v = d.querySelector(".verdict") || d.appendChild(document.createElement("div"));
-      v.className = "verdict"; v.innerHTML = "";
+      v.className = "verdict done"; v.innerHTML = "";
       const stars = document.createElement("span"); stars.className = "stars";
       const q = Math.round(j.quality); stars.textContent = "★".repeat(q) + "☆".repeat(4 - q); stars.title = `quality ${j.quality}/4`;
       const pull = document.createElement("span"); pull.className = "pull" + (j.pull < 0 ? " neg" : "");
       pull.textContent = (j.pull >= 0 ? "+" : "") + j.pull.toFixed(1);
       v.append(pull, stars);
-      j.tags.forEach(t => { const c = document.createElement("span"); c.className = "chip " + t.c; c.textContent = t.t; v.appendChild(c); });
+      j.tags.forEach((t, i) => { const c = document.createElement("span"); c.className = "chip " + t.c; c.style.animationDelay = (80 + i * 70) + "ms"; c.textContent = t.t; v.appendChild(c); });
+      d.classList.add(j.pull < 0 ? "hit-bad" : j.outcome === "crit" ? "hit-crit" : "hit");
       scroll(false);
     }
     // rope + fx
